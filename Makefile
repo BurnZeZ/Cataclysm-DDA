@@ -26,6 +26,8 @@ DEBUG = -g
 #PROFILE = -pg
 #OTHERS = -O3
 #DEFINES = -DNDEBUG
+#USERFLAGS is used to throw in compile flags while preserving other flags in the makefile
+USERFLAGS =
 
 # Disable debug. Comment this out to get logging.
 #DEFINES = -DENABLE_LOGGING
@@ -61,7 +63,7 @@ ifdef RELEASE
   DEBUG =
 endif
 
-CXXFLAGS = $(WARNINGS) $(DEBUG) $(PROFILE) $(OTHERS) -MMD
+CXXFLAGS = $(WARNINGS) $(DEBUG) $(PROFILE) $(OTHERS) $(USERFLAGS) -MMD
 
 BINDIST_EXTRAS = README data cataclysm-launcher
 BINDIST    = cataclysmdda-$(VERSION).tar.gz
