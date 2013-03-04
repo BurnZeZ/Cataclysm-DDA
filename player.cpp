@@ -817,34 +817,56 @@ Strength - 4;    Dexterity - 4;    Intelligence - 4;    Dexterity - 4");
   }
  }
 
- WINDOW* w_grid    = newwin(25, 80,  0,  0);
- WINDOW* w_stats   = newwin( 9, 26,  2,  0);
- WINDOW* w_encumb  = newwin( 9, 26, 12,  0);
- WINDOW* w_traits  = newwin( 9, 26,  2, 27);
- WINDOW* w_effects = newwin( 9, 26, 12, 27);
- WINDOW* w_skills  = newwin( 9, 26,  2, 54);
- WINDOW* w_speed   = newwin( 9, 26, 12, 54);
- WINDOW* w_info    = newwin( 3, 80, 22,  0);
-// Print name and header
- mvwprintw(w_grid, 0, 0, "%s - %s", name.c_str(), (male ? "Male" : "Female"));
- mvwprintz(w_grid, 0, 39, c_ltred, "| Press TAB to cycle, ESC or q to return.");
-// Main line grid
- for (int i = 0; i < 80; i++) {
-  mvwputch(w_grid,  1, i, c_ltgray, LINE_OXOX);
-  mvwputch(w_grid, 21, i, c_ltgray, LINE_OXOX);
-  mvwputch(w_grid, 11, i, c_ltgray, LINE_OXOX);
-  if (i > 1 && i < 21) {
-   mvwputch(w_grid, i, 26, c_ltgray, LINE_XOXO);
-   mvwputch(w_grid, i, 53, c_ltgray, LINE_XOXO);
-  }
+ int maxy,maxx;
+ getmaxyx(stdscr,maxy,maxx);
+
+ int effect_win_size_y;
+ int trait_win_size_y = 2; // Lines not counting actual traits
+ int skill_win_size_y = 2; // Same, but skills
+ int infooffsety = 11;
+ int row2 = infooffsety+4;
+ std::vector<pl_flag> traitslist;
+
+ effect_win_size_y = effect_name.size();
+ if(effect_win_size_y < 9)
+     effect_win_size_y = 9;
+
+ for(int i = 0; i < PF_MAX2; ++i) {
+     if(my_traits[i]) {
+         traitslist.push_back(pl_flag(i));
+         if(traitslist.size()+row2+4 < maxy)
+             ++trait_win_size_y;
+     }
  }
- mvwputch(w_grid,  1, 26, c_ltgray, LINE_OXXX);
- mvwputch(w_grid,  1, 53, c_ltgray, LINE_OXXX);
- mvwputch(w_grid, 21, 26, c_ltgray, LINE_XXOX);
- mvwputch(w_grid, 21, 53, c_ltgray, LINE_XXOX);
- mvwputch(w_grid, 11, 26, c_ltgray, LINE_XXXX);
- mvwputch(w_grid, 11, 53, c_ltgray, LINE_XXXX);
- wrefresh(w_grid);	// w_grid should stay static.
+
+ if(trait_win_size_y < 9)
+     trait_win_size_y = 9;
+
+ for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin()++; aSkill != Skill::skills.end(); ++aSkill) {
+     int i = (*aSkill)->id();
+
+     SkillLevel level = skillLevel(*aSkill);
+
+     if (i == 0)
+         continue;
+
+     if (sklevel[i] >= 0 && skill_win_size_y+row2+4 < maxy) {
+         ++skill_win_size_y;
+     }
+ }
+
+ WINDOW* w_tip    = newwin(1, 80,  0,  0);
+ WINDOW* w_stats   = newwin( 9, 26,  1,  0);
+ WINDOW* w_traits  = newwin( trait_win_size_y, 26, row2,  27);
+ WINDOW* w_encumb  = newwin( 9, 26,  1, 27);
+ WINDOW* w_effects = newwin( effect_win_size_y, 26, row2, 54);
+ WINDOW* w_speed   = newwin( 9, 26,  1, 54);
+ WINDOW* w_skills  = newwin( skill_win_size_y, 26, row2, 0);
+ WINDOW* w_info    = newwin( 3, 80, infooffsety,  0);
+// Print name and header
+ mvwprintw(w_tip, 0, 0, "%s - %s", name.c_str(), (male ? "Male" : "Female"));
+ mvwprintz(w_tip, 0, 39, c_ltred, "| Press TAB to cycle, ESC or q to return.");
+ wrefresh(w_tip);
 
 // First!  Default STATS screen.
  mvwprintz(w_stats, 0, 10, c_ltgray, "STATS");
@@ -936,29 +958,24 @@ Strength - 4;    Dexterity - 4;    Intelligence - 4;    Dexterity - 4");
 
 // Next, draw traits.
  line = 2;
- std::vector <pl_flag> traitslist;
  mvwprintz(w_traits, 0, 9, c_ltgray, "TRAITS");
- for (int i = 0; i < PF_MAX2; i++) {
-  if (my_traits[i]) {
-   traitslist.push_back(pl_flag(i));
-   if (i > PF_MAX2)
-    status = c_ltblue;
-   else if (traits[i].points > 0)
+ for (int i = 0; i < traitslist.size(); i++) {
+    if (traits[traitslist[i]].points > 0)
     status = c_ltgreen;
    else
     status = c_ltred;
-   if (line < 9) {
-    mvwprintz(w_traits, line, 1, status, traits[i].name.c_str());
+   if (line < trait_win_size_y) {
+    mvwprintz(w_traits, line, 1, status, traits[traitslist[i]].name.c_str());
     line++;
    }
   }
- }
+
  wrefresh(w_traits);
 
 // Next, draw effects.
  line = 2;
  mvwprintz(w_effects, 0, 8, c_ltgray, "EFFECTS");
- for (int i = 0; i < effect_name.size() && line < 9; i++) {
+ for (int i = 0; i < effect_name.size() && line < effect_win_size_y; i++) {
   mvwprintz(w_effects, line, 1, c_ltgray, effect_name[i].c_str());
   line++;
  }
@@ -966,7 +983,7 @@ Strength - 4;    Dexterity - 4;    Intelligence - 4;    Dexterity - 4");
 
 // Next, draw skills.
  line = 2;
- std::vector <skill> skillslist;
+ std::vector<skill> skillslist;
  mvwprintz(w_skills, 0, 11, c_ltgray, "SKILLS");
  for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin()++; aSkill != Skill::skills.end(); ++aSkill) {
    int i = (*aSkill)->id();
@@ -978,15 +995,17 @@ Strength - 4;    Dexterity - 4;    Intelligence - 4;    Dexterity - 4");
 
   if (sklevel[i] >= 0) {
    skillslist.push_back(skill(i));
-   if (line < 9) {
+   if (line < skill_win_size_y) {
      mvwprintz(w_skills, line, 1, skillLevel(*aSkill).isTraining() ? c_dkgray : c_ltblue, "%-17s",
-               ((*aSkill)->name() + ":").c_str());
+               ((*aSkill)->name()).c_str());
      mvwprintz(w_skills, line,19, c_ltblue, "%-2d(%2d%%%%)", level.level(),
               (level.exercise() <  0 ? 0 : level.exercise()));
     line++;
     }
   }
  }
+
+
  wrefresh(w_skills);
 
 // Finally, draw speed.
@@ -1246,20 +1265,12 @@ encumb(bp_feet) * 5);
    break;
   case 3:	// Traits tab
    mvwprintz(w_traits, 0, 0, h_ltgray, "         TRAITS           ");
-   if (line <= 2) {
-    min = 0;
-    max = 7;
-    if (traitslist.size() < max)
-     max = traitslist.size();
-   } else if (line >= traitslist.size() - 3) {
-    min = (traitslist.size() < 8 ? 0 : traitslist.size() - 7);
-    max = traitslist.size();
-   } else {
-    min = line - 3;
-    max = line + 4;
-    if (traitslist.size() < max)
-     max = traitslist.size();
-   }
+   min = 0;
+   if(traitslist.size() < trait_win_size_y-1)
+       max = traitslist.size();
+   else
+       max = trait_win_size_y-1;
+
    for (int i = min; i < max; i++) {
     mvwprintz(w_traits, 2 + i - min, 1, c_ltgray, "                         ");
     if (traitslist[i] > PF_MAX2)
@@ -1362,22 +1373,11 @@ encumb(bp_feet) * 5);
 
   case 5:	// Skills tab
    mvwprintz(w_skills, 0, 0, h_ltgray, "           SKILLS         ");
-   if (line <= 2) {
-    min = 0;
-    max = 7;
-    if (skillslist.size() < max)
-     max = skillslist.size();
-   } else if (line >= skillslist.size() - 3) {
-    min = (skillslist.size() < 8 ? 0 : skillslist.size() - 7);
-    max = skillslist.size();
-   } else {
-    min = line - 3;
-    max = line + 4;
-    if (skillslist.size() < max)
-     max = skillslist.size();
-    if (min < 0)
-     min = 0;
-   }
+   min = 0;
+   if(skillslist.size() < skill_win_size_y-1)
+       max = skillslist.size();
+   else
+       max = skill_win_size_y-1;
 
    Skill *selectedSkill;
 
@@ -1402,14 +1402,14 @@ encumb(bp_feet) * 5);
     }
     mvwprintz(w_skills, 2 + i - min, 1, c_ltgray, "                         ");
     if (exercise >= 100) {
-     mvwprintz(w_skills, 2 + i - min, 1, status, "%s:",
+     mvwprintz(w_skills, 2 + i - min, 1, status, "%s",
                aSkill->name().c_str());
      mvwprintz(w_skills, 2 + i - min,19, status, "%-2d(%2d%%%%)",
                level.level(),
                (exercise <  0 ? 0 : exercise));
     } else {
      mvwprintz(w_skills, 2 + i - min, 1, status, "%-17s",
-               (aSkill->name() + ":").c_str());
+               (aSkill->name()).c_str());
      mvwprintz(w_skills, 2 + i - min,19, status, "%-2d(%2d%%%%)",
                level.level(),
                (exercise <  0 ? 0 :
@@ -1434,14 +1434,14 @@ encumb(bp_feet) * 5);
     case '\t':
       werase(w_skills);
      mvwprintz(w_skills, 0, 0, c_ltgray, "           SKILLS         ");
-     for (int i = 0; i < skillslist.size() && i < 7; i++) {
-       Skill *thisSkill = Skill::skill(i);
+     for (int i = 0; i < skillslist.size() && i < skill_win_size_y; i++) {
+       Skill *thisSkill = Skill::skill(skillslist[i]);
        SkillLevel thisLevel = skillLevel(thisSkill);
        if (thisLevel.exercise() < 0)
        status = c_ltred;
       else
        status = c_ltblue;
-      mvwprintz(w_skills, i + 2,  1, status, "%s:",
+      mvwprintz(w_skills, i + 2,  1, status, "%s",
                 thisSkill->name().c_str());
       mvwprintz(w_skills, i + 2, 19, status, "%d (%2d%%%%)",
                 thisLevel.level(),
@@ -1464,7 +1464,7 @@ encumb(bp_feet) * 5);
  } while (!done);
 
  werase(w_info);
- werase(w_grid);
+ werase(w_tip);
  werase(w_stats);
  werase(w_encumb);
  werase(w_traits);
@@ -1474,7 +1474,7 @@ encumb(bp_feet) * 5);
  werase(w_info);
 
  delwin(w_info);
- delwin(w_grid);
+ delwin(w_tip);
  delwin(w_stats);
  delwin(w_encumb);
  delwin(w_traits);

@@ -51,7 +51,7 @@ InputEvent get_input(int ch)
 			return Confirm;
 		case ' ':
 			return Close;
-		case 27: /* TODO Fix delay */
+		case 27:
 		case 'q':
 			return Cancel;
 		case '?':
